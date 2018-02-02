@@ -29,9 +29,9 @@ extern "C"{
 //#include <libswresample/swresample.h>
 //#include <SDL2/SDL.h>
 
-#include "include/libavformat/avformat.h"
-#include "include/SDL_mutex.h"
-#include "include/libavcodec/avcodec.h"
+#include "../include/libavformat/avformat.h"
+#include "../include/SDL_mutex.h"
+#include "../include/libavcodec/avcodec.h"
 /*=========================================================================*\
  * #define#                                                                *
 \*=========================================================================*/

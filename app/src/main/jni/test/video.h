@@ -23,17 +23,17 @@ extern "C"{
 /*=========================================================================*\
  * #include#                                                               *
 \*=========================================================================*/
-#include <include/libavcodec/avcodec.h>
-#include <include/libavformat/avformat.h>
-#include <include/libswresample/swresample.h>
-#include <include/libswscale/swscale.h>
-#include <include/libavutil/time.h>
+#include "../include/libavcodec/avcodec.h"
+#include "../include/libavformat/avformat.h"
+#include "../include/libswresample/swresample.h"
+#include "../include/libswscale/swscale.h"
+#include "../include/libavutil/time.h"
 
 #include <SDL_thread.h>
 #include "player.h"
 #include "frame_queue.h"
 #include "packet_queue.h"
-#include "include/SDL.h"
+#include "../include/SDL.h"
 
 /*=========================================================================*\
  * #define#                                                                *

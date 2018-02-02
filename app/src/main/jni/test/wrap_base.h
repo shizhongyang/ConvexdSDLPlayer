@@ -23,10 +23,10 @@ extern "C"{
 /*=========================================================================*\
  * #include#                                                               *
 \*=========================================================================*/
-#include <include/libavcodec/avcodec.h>
-#include <include/libswresample/swresample.h>
-#include <include/SDL.h>
-#include "include/libavformat/avformat.h"
+#include "../include/libavcodec/avcodec.h"
+#include "../include/libswresample/swresample.h"
+#include "../include/SDL.h"
+#include "../include/libavformat/avformat.h"
 
 /*=========================================================================*\
  * #define#                                                                *

@@ -16,8 +16,8 @@
 #ifndef FRAME_QUEUE_H
 #define FRAME_QUEUE_H
 
-#include "include/libavutil/frame.h"
-#include "include/SDL_mutex.h"
+#include "../include/libavutil/frame.h"
+#include "../include/SDL_mutex.h"
 
 #ifdef __cplusplus
 extern "C"{

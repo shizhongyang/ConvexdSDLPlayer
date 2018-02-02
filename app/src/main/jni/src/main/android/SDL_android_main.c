@@ -13,7 +13,7 @@
 *******************************************************************************/
 #include <jni.h>
 #include <android/log.h>
-#include "player_audio.h"
+#include "test/player_audio.h"
 
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,"ERROR: ", __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,"INFO: ", __VA_ARGS__)

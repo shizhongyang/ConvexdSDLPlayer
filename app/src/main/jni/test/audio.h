@@ -34,7 +34,7 @@ extern "C"{
 #include <libswscale/swscale.h>
 #include <SDL2/SDL.h>*/
 #include "player.h"
-#include <include/SDL.h>
+#include "../include/SDL.h"
 
 
 /*=========================================================================*\
