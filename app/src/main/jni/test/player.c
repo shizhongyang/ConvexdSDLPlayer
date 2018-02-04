@@ -415,8 +415,7 @@ int main(int argc, char* args[])
 						//onLoad();
 					}
 				}
-				else
-				{
+				else {
 					LOGI("plalying....");
 					//onPlay();
 				}

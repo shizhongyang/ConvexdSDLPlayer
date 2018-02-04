@@ -342,7 +342,9 @@ public class SDLActivity extends AppCompatActivity {
 
         super.onDestroy();
         // Reset everything in case the user re opens the app
-        SDLActivity.initialize();
+        //SDLActivity.initialize();
+        SDLActivity.wlRealease();
+        Log.i(TAG, "onDestroy: 释放资源");
     }
 
     @Override
@@ -1284,6 +1286,9 @@ public class SDLActivity extends AppCompatActivity {
         }, "mainThread");
         mSDLThread.start();
     }
+
+
+
 
 
 }

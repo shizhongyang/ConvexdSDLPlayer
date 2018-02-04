@@ -80,6 +80,7 @@ public class VideoListActivity extends AppCompatActivity {
 
     public void click(View view) {
         System.out.println("-------");
+        //int i = 5/0;
 /*        new Thread(new Runnable() {
             @Override
             public void run() {

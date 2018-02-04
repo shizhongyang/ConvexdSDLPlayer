@@ -22,6 +22,7 @@
 #include <libswresample/swresample.h>
 #include "test/player_audio.h"
 #include "queue.h"
+#include "maintest.h"
 
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,"ERROR: ", __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,"INFO: ", __VA_ARGS__)
@@ -198,24 +199,50 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
     }
 }
 
-int main(int argc, char *argv[]) {
-    char *file_path = argv[1];
-    LOGI("file_path:%s", file_path);
+typedef struct _PlayState{
 
     AVFormatContext *pFormatCtx;
     AVCodecContext *pCodecCtx;
     AVCodec *pCodec;
     AVFrame *pFrame, *pFrameYUV;
     AVPacket *packet;
-    uint8_t *out_buffer;
 
     AVCodecContext *aCodecCtx;
     AVCodec *aCodec;
 
-    SDL_Texture *bmp = NULL;
-    SDL_Window *screen = NULL;
+    SDL_Texture *bmp ;
+    SDL_Window *screen ;
     SDL_Rect rect;
     SDL_Event event;
+
+    SDL_AudioSpec wanted_spec, spec;
+
+
+} PlayState;
+
+PlayState *ps;
+
+
+int main(int argc, char *argv[]) {
+    ps = (PlayState*)malloc(sizeof(PlayState));
+
+    char *file_path = argv[1];
+    LOGI("file_path:%s", file_path);
+
+    //AVFormatContext *pFormatCtx;
+    //AVCodecContext *pCodecCtx;
+    //AVCodec *pCodec;
+    //AVFrame *pFrame, *pFrameYUV;
+    //AVPacket *packet;
+    uint8_t *out_buffer;
+
+    //AVCodecContext *aCodecCtx;
+    //AVCodec *aCodec;
+
+    //SDL_Texture *bmp = NULL;
+    //SDL_Window *screen = NULL;
+    //SDL_Rect rect;
+    //SDL_Event event;
 
     SDL_AudioSpec wanted_spec, spec;
 
@@ -225,30 +252,31 @@ int main(int argc, char *argv[]) {
     int ret, got_picture;
 
     av_register_all();
-    pFormatCtx = avformat_alloc_context();
+    //pFormatCtx = avformat_alloc_context();
+    ps->pFormatCtx = avformat_alloc_context();
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER)) {
         LOGE("Could not initialize SDL - %s. \n", SDL_GetError());
         exit(1);
     }
 
-    if (avformat_open_input(&pFormatCtx, file_path, NULL, NULL) != 0) {
+    if (avformat_open_input(&ps->pFormatCtx, file_path, NULL, NULL) != 0) {
         LOGE("can't open the file. \n");
         return -1;
     }
 
-    if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
+    if (avformat_find_stream_info(ps->pFormatCtx, NULL) < 0) {
         LOGE("Could't find stream infomation.\n");
         return -1;
     }
 
     videoStream = 1;
     audioStream = -1;
-    for (i = 0; i < pFormatCtx->nb_streams; i++) {
-        if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+    for (i = 0; i < ps->pFormatCtx->nb_streams; i++) {
+        if (ps->pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             videoStream = i;
         }
-        if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO
+        if (ps->pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO
             && audioStream < 0) {
             audioStream = i;
         }
@@ -265,15 +293,18 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    aCodecCtx = pFormatCtx->streams[audioStream]->codec;
+    //aCodecCtx = ps->pFormatCtx->streams[audioStream]->codec;
+    ps->aCodecCtx = ps->pFormatCtx->streams[audioStream]->codec;
+
+
     // Set audio settings from codec info
-    wanted_spec.freq = aCodecCtx->sample_rate;
+    wanted_spec.freq = ps->aCodecCtx->sample_rate;
     wanted_spec.format = AUDIO_S16SYS;
-    wanted_spec.channels = aCodecCtx->channels;
+    wanted_spec.channels = ps->aCodecCtx->channels;
     wanted_spec.silence = 0;
     wanted_spec.samples = SDL_AUDIO_BUFFER_SIZE;
     wanted_spec.callback = audio_callback;
-    wanted_spec.userdata = aCodecCtx;
+    wanted_spec.userdata = ps->aCodecCtx;
 
     if (SDL_OpenAudio(&wanted_spec, &spec) < 0) {
         LOGE("SDL_OpenAudio: %s\n", SDL_GetError());
@@ -285,71 +316,80 @@ int main(int argc, char *argv[]) {
     wanted_frame.channel_layout = av_get_default_channel_layout(spec.channels);
     wanted_frame.channels       = spec.channels;
 
-    aCodec = avcodec_find_decoder(aCodecCtx->codec_id);
-    if (!aCodec) {
+    //aCodec = avcodec_find_decoder(ps->aCodecCtx->codec_id);
+    ps->aCodec = avcodec_find_decoder(ps->aCodecCtx->codec_id);
+
+
+
+    if (!ps->aCodec) {
         LOGE("Unsupported codec!\n");
         return -1;
     }
-    avcodec_open2(aCodecCtx, aCodec, NULL);
+    avcodec_open2(ps->aCodecCtx, ps->aCodec, NULL);
 
     // audio_st = pFormatCtx->streams[index]
     packet_queue_init(&audioq);
     SDL_PauseAudio(0);
 
-    pCodecCtx = pFormatCtx->streams[videoStream]->codec;
-    pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
-
-    if (pCodec == NULL) {
+    //pCodecCtx = ps->pFormatCtx->streams[videoStream]->codec;
+    //pCodec = avcodec_find_decoder(ps->pCodecCtx->codec_id);
+    ps->pCodecCtx = ps->pFormatCtx->streams[videoStream]->codec;
+    ps->pCodec = avcodec_find_decoder(ps->pCodecCtx->codec_id);
+    if (ps->pCodec == NULL) {
         LOGE("Codec not found.\n");
         return -1;
     }
 
-    if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
+    if (avcodec_open2(ps->pCodecCtx, ps->pCodec, NULL) < 0) {
         LOGE("Could not open codec.\n");
         return -1;
     }
 
-    pFrame = av_frame_alloc();
-    pFrameYUV = av_frame_alloc();
+    //pFrame = av_frame_alloc();
+    //pFrameYUV = av_frame_alloc();
+    ps->pFrame = av_frame_alloc();
+    ps->pFrameYUV = av_frame_alloc();
 
     //---------------------------init sdl---------------------------//
 
-    screen = SDL_CreateWindow("My Player Window", SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, pCodecCtx->width, pCodecCtx->height,
+    ps->screen = SDL_CreateWindow("My Player Window", SDL_WINDOWPOS_UNDEFINED,
+                              SDL_WINDOWPOS_UNDEFINED, ps->pCodecCtx->width, ps->pCodecCtx->height,
                               SDL_WINDOW_FULLSCREEN | SDL_WINDOW_OPENGL);
 
-    SDL_Renderer *renderer = SDL_CreateRenderer(screen, -1, 0);
+    SDL_Renderer *renderer = SDL_CreateRenderer(ps->screen, -1, 0);
 
-    bmp = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_YV12,
-                            SDL_TEXTUREACCESS_STREAMING, pCodecCtx->width, pCodecCtx->height);
+    ps->bmp = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_YV12,
+                            SDL_TEXTUREACCESS_STREAMING, ps->pCodecCtx->width, ps->pCodecCtx->height);
 
     //-------------------------------------------------------------//
 
-    numBytes = avpicture_get_size(AV_PIX_FMT_YUV420P, pCodecCtx->width,
-                                  pCodecCtx->height);
+    numBytes = avpicture_get_size(AV_PIX_FMT_YUV420P, ps->pCodecCtx->width,
+                                  ps->pCodecCtx->height);
     out_buffer = (uint8_t *) av_malloc(numBytes * sizeof(uint8_t));
-    avpicture_fill((AVPicture *) pFrameYUV, out_buffer, AV_PIX_FMT_YUV420P,
-                   pCodecCtx->width, pCodecCtx->height);
+    avpicture_fill((AVPicture *) ps->pFrameYUV, out_buffer, AV_PIX_FMT_YUV420P,
+                   ps->pCodecCtx->width, ps->pCodecCtx->height);
 
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = pCodecCtx->width;
-    rect.h = pCodecCtx->height;
+    ps->rect.x = 0;
+    ps->rect.y = 0;
+    ps->rect.w = ps->pCodecCtx->width;
+    ps->rect.h = ps->pCodecCtx->height;
 
-    int y_size = pCodecCtx->width * pCodecCtx->height;
+    int y_size = ps->pCodecCtx->width * ps->pCodecCtx->height;
 
-    packet = (AVPacket *) malloc(sizeof(AVPacket));
-    av_new_packet(packet, y_size);
+    //packet = (AVPacket *) malloc(sizeof(AVPacket));
+    ps->packet =  (AVPacket *) malloc(sizeof(AVPacket));
 
-    av_dump_format(pFormatCtx, 0, file_path, 0);
+    av_new_packet(ps->packet, y_size);
 
-    while (av_read_frame(pFormatCtx, packet) >= 0) {
-        if (packet->stream_index == videoStream) {
+    av_dump_format(ps->pFormatCtx, 0, file_path, 0);
+
+    while (av_read_frame(ps->pFormatCtx, ps->packet) >= 0) {
+        if (ps->packet->stream_index == videoStream) {
 
             //int getPacketCode = avcodec_send_packet(pCodecCtx, packet);
 
-            ret = avcodec_decode_video2(pCodecCtx, pFrame, &got_picture,
-                                        packet);
+            ret = avcodec_decode_video2(ps->pCodecCtx, ps->pFrame, &got_picture,
+                                        ps->packet);
 
             if (ret < 0) {
                 LOGE("decode error.\n");
@@ -358,37 +398,37 @@ int main(int argc, char *argv[]) {
 
             LOGI("got_picture:%d", got_picture);
             if (got_picture) {
-                img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height,
-                                                 pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height,
+                img_convert_ctx = sws_getContext(ps->pCodecCtx->width, ps->pCodecCtx->height,
+                                                 ps->pCodecCtx->pix_fmt, ps->pCodecCtx->width, ps->pCodecCtx->height,
                                                  AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL);
                 sws_scale(img_convert_ctx,
-                          (uint8_t const * const *) pFrame->data,
-                          pFrame->linesize, 0, pCodecCtx->height, pFrameYUV->data,
-                          pFrameYUV->linesize);
+                          (uint8_t const * const *) ps->pFrame->data,
+                          ps->pFrame->linesize, 0, ps->pCodecCtx->height, ps->pFrameYUV->data,
+                          ps->pFrameYUV->linesize);
                 sws_freeContext(img_convert_ctx);
                 ////iPitch 计算yuv一行数据占的字节数
-                SDL_UpdateYUVTexture(bmp, &rect,
-                                     pFrameYUV->data[0], pFrameYUV->linesize[0],
-                                     pFrameYUV->data[1], pFrameYUV->linesize[1],
-                                     pFrameYUV->data[2], pFrameYUV->linesize[2]);
+                SDL_UpdateYUVTexture(ps->bmp, &ps->rect,
+                                     ps->pFrameYUV->data[0], ps->pFrameYUV->linesize[0],
+                                     ps->pFrameYUV->data[1], ps->pFrameYUV->linesize[1],
+                                     ps->pFrameYUV->data[2], ps->pFrameYUV->linesize[2]);
                 SDL_RenderClear(renderer);
-                SDL_RenderCopy(renderer, bmp, &rect, &rect);
+                SDL_RenderCopy(renderer, ps->bmp, &ps->rect, &ps->rect);
                 SDL_RenderPresent(renderer);
 
                 //设置每秒25帧，1000/25 = 40
                 SDL_Delay(25);
 
             }
-            av_free_packet(packet);
-        } else if (packet->stream_index == audioStream) {
+            av_free_packet(ps->packet);
+        } else if (ps->packet->stream_index == audioStream) {
             LOGI("maintest 准备播放音频");
-            packet_queue_put(&audioq, packet);
+            packet_queue_put(&audioq, ps->packet);
         } else {
-            av_free_packet(packet);
+            av_free_packet(ps->packet);
         }
 
-        SDL_PollEvent(&event);
-        switch (event.type) {
+        SDL_PollEvent(&ps->event);
+        switch (ps->event.type) {
             case SDL_QUIT:
                 SDL_Quit();
                 exit(0);
@@ -397,13 +437,25 @@ int main(int argc, char *argv[]) {
                 break;
         }
     }
-    SDL_DestroyTexture(bmp);
-
+    SDL_DestroyTexture(ps->bmp);
     av_free(out_buffer);
-    av_free(pFrameYUV);
-    avcodec_close(pCodecCtx);
-    avformat_close_input(&pFormatCtx);
+    av_free(ps->pFrameYUV);
+    avcodec_close(ps->pCodecCtx);
+    avformat_close_input(&ps->pFormatCtx);
 
     return 0;
 }
 
+
+void JNICALL Java_com_righere_convexdplayer_sdl_SDLActivity_wlRealease(JNIEnv* env, jclass jcls)
+{
+//	LOGI("release");
+    release();
+
+}
+void release() {
+    SDL_CloseAudio();
+    av_free(ps);
+    ps = NULL;
+   // SDL_Quit();
+}
