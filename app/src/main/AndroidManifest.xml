@@ -35,8 +35,8 @@
             android:configChanges="keyboardHidden|orientation"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoTitle">
-
         </activity>
+        <activity android:name=".MainActivity"/>
 
     </application>
 

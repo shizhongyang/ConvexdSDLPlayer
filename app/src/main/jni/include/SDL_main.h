@@ -102,6 +102,7 @@
 
 #if defined(SDL_MAIN_NEEDED) || defined(SDL_MAIN_AVAILABLE)
 #define main    SDL_main
+#define main1    SDL_main1
 #endif
 
 /**
@@ -109,6 +110,7 @@
  */
 extern C_LINKAGE int SDL_main(int argc, char** argv);
 
+extern C_LINKAGE int SDL_main1(int argc, char** argv);
 
 #include "begin_code.h"
 #ifdef __cplusplus

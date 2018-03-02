@@ -91,7 +91,8 @@ Java_com_righere_convexdplayer_sdl_SDLActivity_nativeInit(JNIEnv* env, jclass cl
     //LOGI("参数：%s",argv[0]);
     //LOGI("参数：%s",argv[1]);
     //LOGI("参数：%s",argv[2]);
-    status = SDL_main(argc, argv);
+    //status = SDL_main(2, argv);
+    status = SDL_main(2, argv);
     //play_audio1(NULL,NULL);
     /* Release the arguments. */
 

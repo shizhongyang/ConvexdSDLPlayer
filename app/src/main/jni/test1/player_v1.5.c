@@ -15,8 +15,6 @@
 /*-----------------------------------------------------------*
  * 头文件                                                    *
  *-----------------------------------------------------------*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,80 +25,141 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <android/log.h>
-#include <src/render/SDL_sysrender.h>
-#include <src/video/SDL_sysvideo.h>
-#include <libavutil/imgutils.h>
-#include <libavutil/display.h>
-#include <libavutil/eval.h>
-#include "SDL.h"
 
-
-#include "libavcodec/avcodec.h"
-#include "libavfilter/avfilter.h"
-#include "libavformat/avformat.h"
-#include "libswscale/swscale.h"
 #include "player.h"
-#include "wrap_base.h"
+#include "packet_queue.h"
 #include "audio.h"
 #include "video.h"
+#define false 0
 
+#include <android/log.h>
+//使用NDK的log
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,"ERROR: ", __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,"INFO: ", __VA_ARGS__)
+/*======================================================================\
+* Author     (作者): i.sshe
+* Date       (日期): 2016/10/03
+* Others     (其他): 成功返回
+\*=======================================================================*/
+int find_stream_index(AVFormatContext *pformat_ctx, int *video_stream, int *audio_stream)
+{
+    assert(video_stream != NULL || audio_stream != NULL);
+
+    if (video_stream == NULL && audio_stream == NULL)
+    {
+        return -2;
+    }
+    int i = 0;
+    int audio_index = -1;
+    int video_index = -1;
+
+    for (i = 0; i < pformat_ctx->nb_streams; i++)
+    {
+        if (pformat_ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+        {
+            video_index = i;
+        }
+        if (pformat_ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
+        {
+            audio_index = i;
+        }
+    }
+
+    //注意以下两个判断有可能返回-1.
+    if (video_stream == NULL)
+    {
+        *audio_stream = audio_index;
+        return *audio_stream;
+    }
+
+    if (audio_stream == NULL)
+    {
+        *video_stream = video_index;
+        return *video_stream;
+    }
+
+    *video_stream = video_index;
+    *audio_stream = audio_index;
+
+    return 0;
+}
+
+
+
+/*======================================================================\
+* Author     (作者): i.sshe
+* Date       (日期): 2016/10/03
+* Others     (其他):获取文件名
+\*=======================================================================*/
+void get_file_name(char *filename, int argc, char *argv[])
+{
+    if (argc == 2)
+    {
+        memcpy(filename, argv[1], strlen(argv[1])+1);
+    }
+    else if (argc > 2)
+    {
+        LOGE( "Usage: ./*.out filename\n");
+        exit(-1);
+    }
+}
+
 
 int main(int argc, char *argv[])
 {
      SDL_Event      event;
      PlayerState    *ps = NULL;
-	 
+
      ps = (PlayerState *)av_malloc(sizeof(PlayerState));
      if (ps == NULL)
      {
-          fprintf(ERR_STREAM, "malloc ps error\n");
+          LOGE("malloc ps error\n");
      }
+
      player_state_init(ps);
+     //LOGI("player_state_init");
 	 memcpy(ps->filename, FILE_NAME, strlen(FILE_NAME));
-     LOGI("文件名：%s",ps->filename);
+     //LOGI("get_file_name:%s",ps->filename);
      get_file_name(ps->filename, argc, argv);
-     LOGI("文件名：%s",ps->filename);
+     //LOGI("get_file_name:%s",ps->filename);
      if (prepare_common(ps) != 0)
      {
-          fprintf(ERR_STREAM, "prepare common error\n");
+          LOGE("prepare common error\n");
           exit(-1);
      }
 
-	 av_dump_format(ps->pformat_ctx, 0, ps->filename, 0);
+	 av_dump_format(ps->pformat_ctx, 0, ps->filename, false);
      //至少有一种流，读流，解码。
-    LOGI("音频播放");
-    if (ps->audio_stream_index != -1) {
+
+
+    if (ps->audio_stream_index != -1)
+    {
     	 packet_queue_init(&ps->audio_packet_queue);
     	 prepare_audio(ps);
          play_audio(ps);
     }
-    LOGI("视频播放开始");
+
     if ( ps->video_stream_index != -1)
     {
-    	frame_queue_init(&ps->video_frame_queue);
     	packet_queue_init(&ps->video_packet_queue);
     	prepare_video(ps);
     	play_video(ps);
     }
-    LOGI("视频播放--");
-    SDL_CreateThread(decode_thread, "decode_thread", ps);
-	
+
+	SDL_CreateThread(decode_thread, "decode_thread", ps);
+
     while(1)
     {
-    	SDL_WaitEvent(&event); 
         if (ps->quit == 1)
         {
             break;
         }
         
-        switch(event.type)
-        {
+    	SDL_WaitEvent(&event);
+        switch(event.type) {
             case ISSHE_REFRESH_EVENT:
             {
-                show_picture(ps);
+                decode_and_show(ps);
                 break;
             }
             case SDL_WINDOWEVENT:
@@ -108,9 +167,8 @@ int main(int argc, char *argv[])
                 break;
             }
             case SDL_QUIT:
-            {  
-            	printf("SDL_QUIT: audio_clock = %lf\n", ps->audio_clock);
-            	printf("SDL_QUIT: test = %lf\n", ps->test);  
+            {
+            	printf("SDL_QUIT！\n");
             	ps->quit = 1;
                 SDL_Quit();
                 break;
@@ -122,10 +180,10 @@ int main(int argc, char *argv[])
         }
 
     }
-    
+
     //
     if (ps->video_stream_index != -1)
-    { 
+    {
     	sws_freeContext(ps->psws_ctx);
     }
     return 0;
@@ -138,7 +196,7 @@ int prepare_common(PlayerState *ps)
     av_register_all();
     if (SDL_Init(SDL_INIT_VIDEO |SDL_INIT_AUDIO | SDL_INIT_TIMER))
     {
-         fprintf(ERR_STREAM, "init SDL error: %s\n", SDL_GetError());
+        LOGE( "init SDL error: %s\n", SDL_GetError());
          return -1;
     }
 
@@ -146,13 +204,13 @@ int prepare_common(PlayerState *ps)
     //pformat_ctx会有所指向，不用分配内存
     if (avformat_open_input(&ps->pformat_ctx, ps->filename, NULL, NULL) != 0)
     {
-         fprintf(ERR_STREAM, "open input file error\n");
+         LOGE("open input file error\n");
          return -1;
     }
 
     if (avformat_find_stream_info(ps->pformat_ctx, NULL) < 0)
     {
-         fprintf(ERR_STREAM, "Couldn't find stream info\n");
+         LOGE("Couldn't find stream info\n");
          return -1;
     }
 
@@ -162,10 +220,10 @@ int prepare_common(PlayerState *ps)
                 &ps->video_stream_index,
                 &ps->audio_stream_index) == -2)
     {
-         fprintf(ERR_STREAM, "Couldn't find any stream index\n");
+         LOGE("Couldn't find any stream index\n");
          return -1;
     }
-    
+
     return 0;
 }
 
@@ -176,59 +234,50 @@ int prepare_common(PlayerState *ps)
 * Date       (日期): 2016/10/06
 * Others     (其他): 只负责从流中读取packet
 \*=======================================================================*/
-int decode_thread(void *arg)
-{
+int decode_thread(void *arg) {
     PlayerState *ps = (PlayerState *)arg;
     AVPacket    *packet = av_packet_alloc();
 
-    while(1)
-    {
+    while(1) {
          if (ps->quit == 1)
          {
              break;
          }
 
          //如果队列数据过多，就等待以下
-         if (ps->audio_packet_queue.nb_packets >=MAX_AUDIO_QUEUE_SIZE || 
-         	 ps->video_packet_queue.nb_packets >= MAX_VIDEO_QUEUE_SIZE)
-         {
-         	  printf("audio queue = %d, video queue = %d\n", 
-         	  		ps->audio_packet_queue.nb_packets,ps->video_packet_queue.nb_packets);
-         	  printf("decode函数里：ps->audio_clock = %lf\n", ps->audio_clock);
-         	  printf("过多数据，延时\n");
+         if (ps->audio_packet_queue.nb_packets >=MAX_AUDIO_QUEUE_SIZE ||
+         	 ps->video_packet_queue.nb_packets >= MAX_VIDEO_QUEUE_SIZE) {
+              LOGI("过多数据，延时\n");
               SDL_Delay(100);
               continue;
          }
 
-         if (av_read_frame(ps->pformat_ctx, packet) < 0)
-         {
-             if ((ps->pformat_ctx->pb->error) == 0)
-             {
-             	  printf("读完延时\n");
+         if (av_read_frame(ps->pformat_ctx, packet) < 0) {
+             if ((ps->pformat_ctx->pb->error) == 0) {
+                  LOGI("读完延时\n");
                   SDL_Delay(100); //不是出错，可能是读完了
 //                  ps->quit = 1;
                   break;//continue;
              }
-             else
-             {
-             	 printf("出错，延时\n");
+             else {
+                 LOGI("出错，延时\n");
                  continue; 		//出错了，继续读，这里
              }
          }
 
          //读取到数据了
          if (packet->stream_index == ps->video_stream_index)
-         {	  
+         {
               packet_queue_put(&ps->video_packet_queue, packet);
          }
-         
+
          if (packet->stream_index == ps->audio_stream_index)
          {
              packet_queue_put(&ps->audio_packet_queue, packet);
          }
-        
+
     }
-    
+
     av_packet_free(&packet);
     return 0;
 }
@@ -238,10 +287,10 @@ void player_state_init(PlayerState *ps)
 {
 	ps->pformat_ctx 		= NULL;
 	ps->quit 				= 0;
-	
+
     ps->audio_stream_index 	= -1;
     ps->paudio_stream 		= NULL;
-    
+
     ps->paudio_codec_ctx 	= NULL;
     ps->paudio_codec 		= NULL;
     ps->audio_buf_size		= 0;
@@ -251,7 +300,7 @@ void player_state_init(PlayerState *ps)
     ps->pvideo_stream 			= NULL;
     ps->pvideo_codec_ctx 		= NULL;
     ps->pvideo_codec 			= NULL;
-    ps->video_buf				= NULL; 		
+    ps->video_buf				= NULL;
     ps->video_buf_size 			= 0;
     ps->video_buf_index 		= 0;
     ps->psws_ctx 				= NULL;
@@ -265,17 +314,17 @@ void player_state_init(PlayerState *ps)
     ps->prenderer 				= NULL;
     ps->ptexture 				= NULL;
     ps->pixfmt 					= AV_PIX_FMT_YUV420P;
-    
+
     ps->audio_clock 				= 0.0;
     ps->video_clock 				= 0.0;
     ps->pre_frame_pts				= 0.0;		//前一帧显示时间
-    ps->cur_frame_pkt_pts			= 0.0; 		//当前帧在packet中标记的pts
+ //   ps->cur_frame_pkt_pts			= 0.0; 		//当前帧在packet中标记的pts
     ps->pre_cur_frame_delay 		= 40e-3; 	//当前帧和前一帧的延时，前面两个相减的结果
     ps->cur_frame_pts 				= 0.0;		//packet.pts
     ps->delay 						= 40;
-     
-     
-    ps->frame_timer 				= (double)av_gettime()/1000000.0;
+
+
+//    ps->frame_timer 				= (double)av_gettime()/1000000.0;
 }
 
 

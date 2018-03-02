@@ -343,7 +343,7 @@ public class SDLActivity extends AppCompatActivity {
         super.onDestroy();
         // Reset everything in case the user re opens the app
         //SDLActivity.initialize();
-        SDLActivity.wlRealease();
+        //SDLActivity.wlRealease();
         Log.i(TAG, "onDestroy: 释放资源");
     }
 

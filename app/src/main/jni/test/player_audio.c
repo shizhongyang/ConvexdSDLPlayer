@@ -26,7 +26,7 @@ extern "C"
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
 #include <include/SDL.h>
-#include "wrap_base.h"
+#include "test1/wrap_base.h"
 #ifdef __cplusplus
 };
 #endif

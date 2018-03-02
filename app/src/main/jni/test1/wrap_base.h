@@ -1,11 +1,11 @@
 /*=========================================================================\
 * Copyright(C)2016 Chudai.
 *
-* File name    : video.h
+* File name    : wrap_base.h
 * Version      : v1.0.0
 * Author       : i.sshe
 * Github       : github.com/isshe
-* Date         : 2016/10/07
+* Date         : 2016/10/03
 * Description  :
 * Function list: 1.
 *                2.
@@ -13,8 +13,8 @@
 * History      :
 \*=========================================================================*/
 
-#ifndef VIDEO_H_
-#define VIDEO_H_
+#ifndef WRAP_BASE_H_
+#define WRAP_BASE_H_
 
 #ifdef __cplusplus
 extern "C"{
@@ -23,17 +23,10 @@ extern "C"{
 /*=========================================================================*\
  * #include#                                                               *
 \*=========================================================================*/
-#include "../include/libavcodec/avcodec.h"
-#include "../include/libavformat/avformat.h"
-#include "../include/libswresample/swresample.h"
-#include "../include/libswscale/swscale.h"
-#include "../include/libavutil/time.h"
-
-#include <SDL_thread.h>
-#include "player.h"
-#include "frame_queue.h"
-#include "packet_queue.h"
-#include "../include/SDL.h"
+#include "libavcodec/avcodec.h"
+#include "libswresample/swresample.h"
+#include "SDL.h"
+#include "libavformat/avformat.h"
 
 /*=========================================================================*\
  * #define#                                                                *
@@ -50,18 +43,43 @@ extern "C"{
 /*=========================================================================*\
  * #function#                                                              *
 \*=========================================================================*/
-int prepare_video(PlayerState *ps);
-int play_video(PlayerState *ps);
-int decode_video(void *arg);
-int show_picture(PlayerState *ps);
-//int show_picture(void *arg);
-unsigned int video_refresh_timer_cb(uint32_t interval, void *userdata);
-void schedule_refresh(PlayerState *ps, int delay);
-int refresh_fun(void *arg);
-double synchronize(PlayerState *ps, AVFrame *srcFrame, double pts);
-double get_audio_clock(PlayerState *ps);
-double get_frame_pts(PlayerState *ps, AVFrame *pframe);
-double get_delay(PlayerState *ps);
+
+
+/*=====================================================================\
+* Function   (名称): find_stream_index()
+* Description(功能): 查找视频流和音频流
+* Called By  (被调): 1.
+* Call_B file(被文): 1.
+* Calls list (调用): 1.
+* Calls file (调文): 1.
+* Input      (输入): 1.
+* Output     (输出): 1.
+* Return     (返回):
+*         success  :
+*         failure  :
+* Change log (修改): 1.
+* Others     (其他): 1.
+\*=====================================================================*/
+int find_stream_index(AVFormatContext *pformat_ctx, int *video_stream, int *audio_stream);
+
+
+
+/*=====================================================================\
+* Function   (名称): get_file_name()
+* Description(功能): 获取文件名字
+* Called By  (被调): 1.
+* Call_B file(被文): 1.
+* Calls list (调用): 1.
+* Calls file (调文): 1.
+* Input      (输入): 1.
+* Output     (输出): 1.
+* Return     (返回):
+*         success  :
+*         failure  :
+* Change log (修改): 1.
+* Others     (其他): 1.
+\*=====================================================================*/
+void get_file_name(char *filename, int argc, char *argv[]);
 #ifdef __cplusplus
 }
 #endif

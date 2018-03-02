@@ -1,11 +1,11 @@
 /*=========================================================================\
 * Copyright(C)2016 Chudai.
 *
-* File name    : frame_queue.h
+* File name    : packet_queue.h
 * Version      : v1.0.0
 * Author       : i.sshe
 * Github       : github.com/isshe
-* Date         : 2016/10/06
+* Date         : 2016/10/03
 * Description  :
 * Function list: 1.
 *                2.
@@ -13,11 +13,8 @@
 * History      :
 \*=========================================================================*/
 
-#ifndef FRAME_QUEUE_H
-#define FRAME_QUEUE_H
-
-#include "../include/libavutil/frame.h"
-#include "../include/SDL_mutex.h"
+#ifndef PACKET_QUEUE_H_
+#define PACKET_QUEUE_H_
 
 #ifdef __cplusplus
 extern "C"{
@@ -26,16 +23,10 @@ extern "C"{
 /*=========================================================================*\
  * #include#                                                               *
 \*=========================================================================*/
-#define __STDC_CONSTANT_MACROS      //ffmpeg要求
-//extern "C"
-//{
-//#include <libavcodec/avcodec.h>
-//#include <libavformat/avformat.h>
-//#include <libswresample/swresample.h>
-//#include <libswscale/swscale.h>
-//#include <libavutil/time.h>
-//#include <SDL2/SDL.h>
-//}
+#include <../include/libavcodec/avcodec.h>
+#include <../include/libavformat/avformat.h>
+#include <../include/libswresample/swresample.h>
+#include <../include/SDL.h>
 /*=========================================================================*\
  * #define#                                                                *
 \*=========================================================================*/
@@ -47,24 +38,15 @@ extern "C"{
 /*=========================================================================*\
  * #struct#                                                                *
 \*=========================================================================*/
-typedef struct AVFrameList
+typedef struct PacketQueue
 {
-    AVFrame             frame;
-    struct AVFrameList  *next;
-}AVFrameList;
-
-typedef struct FrameQueue
-{
-     AVFrameList    *first_fm;
-     AVFrameList    *last_fm;
-     int            nb_frames;
-     int 			queue_capacity; 		//要设置
-//     int            size;
-     SDL_mutex      *mutex;
-     SDL_cond       *cond;
-
-     struct FrameQueue *next;
-}FrameQueue;
+    AVPacketList    *first_pkt;     //队头的一个packet, 注意类型不是AVPacket
+    AVPacketList    *last_pkt;      //队尾packet
+    int             nb_packets;     // paket个数
+    int             size;           //
+    SDL_mutex       *mutex;         //
+    SDL_cond        *cond;          // 条件变量
+}PacketQueue;
 
 /*=========================================================================*\
  * #function#                                                              *
@@ -72,8 +54,8 @@ typedef struct FrameQueue
 
 
 /*=====================================================================\
-* Function   (名称): frame_queue_init()
-* Description(功能): 初始化队列
+* Function   (名称): pakcet_queue_init()
+* Description(功能): 初始化pakcet队列
 * Called By  (被调): 1.
 * Call_B file(被文): 1.
 * Calls list (调用): 1.
@@ -86,12 +68,29 @@ typedef struct FrameQueue
 * Change log (修改): 1.
 * Others     (其他): 1.
 \*=====================================================================*/
-void frame_queue_init(FrameQueue *queue);
+void packet_queue_init(PacketQueue *queue);
+
+/*=====================================================================\
+* Function   (名称): packet_queue_put()
+* Description(功能): 把packet入队。
+* Called By  (被调): 1.
+* Call_B file(被文): 1.
+* Calls list (调用): 1.
+* Calls file (调文): 1.
+* Input      (输入): 1.
+* Output     (输出): 1.
+* Return     (返回):
+*         success  :
+*         failure  :
+* Change log (修改): 1.
+* Others     (其他): 1.
+\*=====================================================================*/
+int packet_queue_put(PacketQueue *queue, AVPacket *packet);
 
 
 /*=====================================================================\
-* Function   (名称): frame_queue_put()
-* Description(功能): 入队
+* Function   (名称): pakcet_queue_get()
+* Description(功能): 从队列获取一个pakcet
 * Called By  (被调): 1.
 * Call_B file(被文): 1.
 * Calls list (调用): 1.
@@ -104,25 +103,7 @@ void frame_queue_init(FrameQueue *queue);
 * Change log (修改): 1.
 * Others     (其他): 1.
 \*=====================================================================*/
-int frame_queue_put(FrameQueue *queue, AVFrame *frame);
-
-
-/*=====================================================================\
-* Function   (名称): frame_queue_get()
-* Description(功能): 出队
-* Called By  (被调): 1.
-* Call_B file(被文): 1.
-* Calls list (调用): 1.
-* Calls file (调文): 1.
-* Input      (输入): 1.
-* Output     (输出): 1.
-* Return     (返回):
-*         success  :
-*         failure  :
-* Change log (修改): 1.
-* Others     (其他): 1.
-\*=====================================================================*/
-int frame_queue_get(FrameQueue *queue, AVFrame *frame, int block);
+int packet_queue_get(PacketQueue *queue, AVPacket *pakcet, int block);
 
 #ifdef __cplusplus
 }

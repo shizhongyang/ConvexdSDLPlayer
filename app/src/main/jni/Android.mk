@@ -123,6 +123,11 @@ include $(BUILD_STATIC_LIBRARY)
 #	$(LOCAL_PATH)/video.c \
 #	$(LOCAL_PATH)/player_v1.4.c \
 
+#    $(LOCAL_PATH)/test1/packet_queue.c \
+#    $(LOCAL_PATH)/test1/audio.c \
+#    $(LOCAL_PATH)/test1/video.c \
+#    $(LOCAL_PATH)/test1/player_v1.5.c
+#    $(LOCAL_PATH)/test/player.c
 include $(CLEAR_VARS)
 LOCAL_MODULE := SDL2main
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
@@ -131,8 +136,11 @@ LOCAL_EXPORT_C_INCLUDES := $(LOCAL_C_INCLUDES)
 #$(LOCAL_PATH)/convexd_native_render.c \
 # Add your application source files here...
 LOCAL_SRC_FILES := $(LOCAL_PATH)/src/main/android/SDL_android_main.c \
-    $(LOCAL_PATH)/queue.c \
-    $(LOCAL_PATH)/maintest.c
+$(LOCAL_PATH)/test1/packet_queue.c \
+$(LOCAL_PATH)/test1/audio.c \
+$(LOCAL_PATH)/test1/video.c \
+$(LOCAL_PATH)/test1/player_v1.5.c \
+$(LOCAL_PATH)/test/player.c
 
 LOCAL_SHARED_LIBRARIES := SDL2 avcodec avfilter avformat avutil  swresample swscale
 LOCAL_LDLIBS := -lGLESv1_CM -lGLESv2 -llog

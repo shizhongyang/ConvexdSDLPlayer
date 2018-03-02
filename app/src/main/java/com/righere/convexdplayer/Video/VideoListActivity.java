@@ -16,6 +16,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 
 import com.righere.convexdplayer.Adapter.VideoListAdapter;
+import com.righere.convexdplayer.MainActivity;
 import com.righere.convexdplayer.R;
 import com.righere.convexdplayer.sdl.SDLActivity;
 
@@ -80,6 +81,7 @@ public class VideoListActivity extends AppCompatActivity {
 
     public void click(View view) {
         System.out.println("-------");
+        startActivity(new Intent(this, MainActivity.class));
         //int i = 5/0;
 /*        new Thread(new Runnable() {
             @Override

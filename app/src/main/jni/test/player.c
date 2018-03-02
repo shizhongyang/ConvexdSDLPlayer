@@ -39,14 +39,14 @@ typedef struct PacketQueue
 	SDL_cond *cond;
 } PacketQueue;
 
-void packet_queue_init(PacketQueue *q) {
+void packet_queue_init1(PacketQueue *q) {
 	memset(q, 0, sizeof(PacketQueue));
 	q->mutex = SDL_CreateMutex();
 	q->cond = SDL_CreateCond();
 }
 
 
-int packet_queue_put(PacketQueue *q, AVPacket *pkt) {
+int packet_queue_put1(PacketQueue *q, AVPacket *pkt) {
 
 	if(quit == -1)
 		return -1;
@@ -75,7 +75,7 @@ int packet_queue_put(PacketQueue *q, AVPacket *pkt) {
 	return 0;
 }
 
-static int packet_queue_get(PacketQueue *q, AVPacket *pkt) {
+static int packet_queue_get1(PacketQueue *q, AVPacket *pkt) {
 	if(quit == -1)
 		return -1;
 	AVPacketList *pkt1;
@@ -106,7 +106,7 @@ static int packet_queue_get(PacketQueue *q, AVPacket *pkt) {
 	return ret;
 }
 
-int getQueueSize(PacketQueue *q)
+int getQueueSize1(PacketQueue *q)
 {
 	return q->nb_packets;
 }
@@ -130,7 +130,7 @@ typedef struct PlayerState
 PlayerState *playerState;
 
 
-int audio_decode_frame(AVCodecContext *aCodecCtx, uint8_t *audio_buf, int buf_) {
+int audio_decode_frame1(AVCodecContext *aCodecCtx, uint8_t *audio_buf, int buf_) {
 
 	if(quit == -1)
 	{
@@ -141,9 +141,9 @@ int audio_decode_frame(AVCodecContext *aCodecCtx, uint8_t *audio_buf, int buf_) 
 	AVPacket pkt;
 	int got_frame_ptr;
 
-	SwrContext *swr_ctx;
+	SwrContext *swr_ctx = swr_alloc();
 
-	if (packet_queue_get(&playerState->audioq, &pkt) < 0)
+	if (packet_queue_get1(&playerState->audioq, &pkt) < 0)
 		return -1;
 
 	int ret = avcodec_send_packet(aCodecCtx, &pkt);
@@ -156,23 +156,62 @@ int audio_decode_frame(AVCodecContext *aCodecCtx, uint8_t *audio_buf, int buf_) 
 
 	// 设置通道数或channel_layout
 	if (frame->channels > 0 && frame->channel_layout == 0)
-		frame->channel_layout = av_get_default_channel_layout(frame->channels);
+		frame->channel_layout = (uint64_t) av_get_default_channel_layout(frame->channels);
 	else if (frame->channels == 0 && frame->channel_layout > 0)
 		frame->channels = av_get_channel_layout_nb_channels(frame->channel_layout);
 
-	enum AVSampleFormat dst_format = AV_SAMPLE_FMT_S16;//av_get_packed_sample_fmt((AVSampleFormat)frame->format);
+	enum AVSampleFormat dst_format = AV_SAMPLE_FMT_S16;
+	//av_get_packed_sample_fmt((AVSampleFormat)frame->format);
 
 	//重采样为立体声
 	Uint64 dst_layout = AV_CH_LAYOUT_STEREO;
-	// 设置转换参数
-	swr_ctx = swr_alloc_set_opts(NULL, dst_layout, dst_format, frame->sample_rate,
-		frame->channel_layout, (enum AVSampleFormat)frame->format, frame->sample_rate, 0, NULL);
-	if (!swr_ctx || swr_init(swr_ctx) < 0)
-		return -1;
+	// 设置转换参数 swr_ctx =
+	//重采样设置参数-------------start
+	//输入的采样格式
+	enum AVSampleFormat in_sample_fmt = aCodecCtx->sample_fmt;
+	//输出采样格式16bit PCM
+	enum AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16;
+	//输入采样率
+	int in_sample_rate = aCodecCtx->sample_rate;
+	//输出采样率
+	int out_sample_rate = in_sample_rate;
+	//获取输入的声道布局
+	//根据声道个数获取默认的声道布局（2个声道，默认立体声stereo）
+	//av_get_default_channel_layout(codecCtx->channels);
+	uint64_t in_ch_layout = aCodecCtx->channel_layout;
+	//输出的声道布局（立体声）
+	uint64_t out_ch_layout = AV_CH_LAYOUT_STEREO;
+	LOGI("maintest 音频解码至 swr_alloc_set_opts");
+/*	swr_alloc_set_opts(swr_ctx,
+					   out_ch_layout,
+					   out_sample_fmt,
+					   out_sample_rate,
+					   in_ch_layout,
+					   in_sample_fmt,
+					   in_sample_rate,
+					   0, NULL);*/
+
+
+	swr_alloc_set_opts(swr_ctx,
+					   dst_layout,
+					   dst_format,
+					   out_sample_rate,
+                       in_ch_layout,
+					   in_sample_fmt,
+					   in_sample_rate,
+					   0, NULL);
+
+	if (!swr_ctx || swr_init(swr_ctx) < 0){
+
+        LOGE("swr_ctx init error");
+        return -1;
+    }
+
 
 	// 计算转换后的sample个数 a * b / c
-	int dst_nb_samples = av_rescale_rnd(swr_get_delay(swr_ctx,
-			frame->sample_rate) + frame->nb_samples, frame->sample_rate, frame->sample_rate, AV_ROUND_INF);
+	int dst_nb_samples = (int) av_rescale_rnd(swr_get_delay(swr_ctx,
+															frame->sample_rate) + frame->nb_samples,
+											  frame->sample_rate, frame->sample_rate, AV_ROUND_INF);
 	// 转换，返回值为转换后的sample个数
 	int nb = swr_convert(swr_ctx, &audio_buf, dst_nb_samples, (const uint8_t**)frame->data, frame->nb_samples);
 
@@ -186,7 +225,7 @@ int audio_decode_frame(AVCodecContext *aCodecCtx, uint8_t *audio_buf, int buf_) 
 	return data_size;
 }
 
-void audio_callback(void *userdata, Uint8 *stream, int len) {
+void audio_callback1(void *userdata, Uint8 *stream, int len) {
 
 	AVCodecContext *aCodecCtx = (AVCodecContext *)userdata;
 	int len1, audio_size;
@@ -211,7 +250,7 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
 		if (audio_buf_index >= audio_buf_size) // 缓冲区中无数据
 		{
 			// 从packet中解码数据
-			audio_size = audio_decode_frame(aCodecCtx, audio_buff, sizeof(audio_buff));
+			audio_size = audio_decode_frame1(aCodecCtx, audio_buff, sizeof(audio_buff));
 			if (audio_size < 0) // 没有解码到数据或出错，填充0
 			{
 				audio_buf_size = 0;
@@ -306,7 +345,7 @@ int decodeFile(void *args)
 	playerState->wanted_spec.channels = 2;
 	playerState->wanted_spec.silence = 0;
 	playerState->wanted_spec.samples = SDL_AUDIO_BUFFER_SIZE;
-	playerState->wanted_spec.callback = audio_callback;
+	playerState->wanted_spec.callback = audio_callback1;
 	playerState->wanted_spec.userdata = playerState->audioCodecCtx;
 	if(SDL_OpenAudio(&playerState->wanted_spec, &playerState->spec) < 0)
 	{
@@ -326,7 +365,7 @@ int decodeFile(void *args)
 	AVPacket packet;
 	int index = 0;
 	while (1){
-		LOGI("-----quit:%d,%d",quit,isPlay);
+		//LOGI("-----quit:%d,%d",quit,isPlay);
 		if(quit == -1)
 		{
 			break;
@@ -337,14 +376,14 @@ int decodeFile(void *args)
 		}
 		if(playerState)
 		{
-			if (getQueueSize(&playerState->audioq) < 50)
+			if (getQueueSize1(&playerState->audioq) < 50)
 			{
 				int ret = av_read_frame(playerState->pFormatCtx, &packet);
 				if (ret == 0)
 				{
 					isOver = 0;
 					if (packet.stream_index == playerState->audioStreamIndex) {
-						packet_queue_put(&playerState->audioq, &packet);
+						packet_queue_put1(&playerState->audioq, &packet);
 						//					LOGI("code %d", index++);
 					} else {
 						av_packet_unref(&packet);
@@ -352,7 +391,7 @@ int decodeFile(void *args)
 				}
 				else if(ret == AVERROR_EOF) {
 					isOver = 1;
-					if(getQueueSize(&playerState->audioq) == 0)
+					if(getQueueSize1(&playerState->audioq) == 0)
 					{
 						quit = 1;
 						//onComplete();
@@ -380,7 +419,7 @@ int avformat_interrupt_cb(void *ctx)
 }
 
 
-int main(int argc, char* args[])
+int main1(int argc, char* args[])
 {
 	LOGI(".............come from main............");
 	LOGI("input url: %s", args[1]);
@@ -394,7 +433,7 @@ int main(int argc, char* args[])
 	av_register_all();
 	avformat_network_init();
 	playerState = malloc(sizeof(PlayerState));
-	packet_queue_init(&playerState->audioq);
+	packet_queue_init1(&playerState->audioq);
 	playerState->url = args[1];
 	playerState->audioStreamIndex = -1;
 	playerState->pFormatCtx = avformat_alloc_context();
@@ -407,7 +446,7 @@ int main(int argc, char* args[])
 		{
 			if(quit == 0)
 			{
-				if(getQueueSize(&playerState->audioq) == 0)
+				if(getQueueSize1(&playerState->audioq) == 0)
 				{
 					if(isOver != 1)//退出
 					{
@@ -492,7 +531,8 @@ void JNICALL Java_com_righere_convexdplayer_sdl_SDLActivity_wlRealease(JNIEnv* e
 
 jint JNICALL Java_com_righere_convexdplayer_sdl_SDLActivity_wlNowTime(JNIEnv* env, jclass jcls)
 {
-	if(playerState && playerState->audioStream && getQueueSize(&playerState->audioq) > 0 && playerState->audioStream->time_base.den > 0)
+	if(playerState && playerState->audioStream && getQueueSize1(&playerState->audioq) > 0
+       && playerState->audioStream->time_base.den > 0)
 	{
 		return playerState->audioPts / playerState->audioStream->time_base.den;
 	}
@@ -505,7 +545,8 @@ int JNICALL Java_com_righere_convexdplayer_sdl_SDLActivity_wlSeekTo(JNIEnv* env,
 	if(playerState && playerState->audioStream && secds < playerState->audioDuration && isOver != 1)
 	{
 		quit = 1;
-		if(av_seek_frame(playerState->pFormatCtx, playerState->audioStreamIndex, secds * playerState->audioStream->time_base.den, AVSEEK_FLAG_ANY) >= 0)
+		if(av_seek_frame(playerState->pFormatCtx, playerState->audioStreamIndex,
+                         secds * playerState->audioStream->time_base.den, AVSEEK_FLAG_ANY) >= 0)
 		{
 			playerState->audioq.first_pkt = NULL;
 			playerState->audioq.last_pkt = NULL;
